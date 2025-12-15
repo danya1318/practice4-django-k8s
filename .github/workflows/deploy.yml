@@ -1,0 +1,53 @@
+name: Build & Deploy (Practice 4)
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  build-push-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Define image tag
+        run: |
+          echo "IMAGE=${{ secrets.REGISTRY }}/${{ secrets.IMAGE_NAME }}:${{ github.sha }}" >> $GITHUB_ENV
+
+      - name: Login to private registry
+        run: |
+          echo "${{ secrets.REGISTRY_PASS }}" | docker login ${{ secrets.REGISTRY }} -u "${{ secrets.REGISTRY_USER }}" --password-stdin
+
+      - name: Build image
+        run: |
+          docker build -t "$IMAGE" ./app
+
+      - name: Push image
+        run: |
+          docker push "$IMAGE"
+
+      - name: Install kubectl + helm
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ca-certificates curl
+          curl -sSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+          curl -LO "https://dl.k8s.io/release/$(curl -Ls https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+
+      - name: Setup kubeconfig
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBECONFIG_B64 }}" | base64 -d > $HOME/.kube/config
+          chmod 600 $HOME/.kube/config
+
+      - name: Deploy with Helm
+        run: |
+          kubectl get ns ${{ secrets.K8S_NAMESPACE }} || kubectl create ns ${{ secrets.K8S_NAMESPACE }}
+
+          helm upgrade --install ${{ secrets.RELEASE_NAME }} ./charts/djangoapp \
+            -n ${{ secrets.K8S_NAMESPACE }} \
+            --set image.repository=${{ secrets.REGISTRY }}/${{ secrets.IMAGE_NAME }} \
+            --set image.tag=${{ github.sha }} \
+            --set image.pullPolicy=IfNotPresent

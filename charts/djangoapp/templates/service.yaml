@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: djangoapp
+  labels:
+    app: djangoapp
+spec:
+  type: {{ .Values.service.type }}
+  selector:
+    app: djangoapp
+  ports:
+    - name: {{ .Values.service.name }}
+      port: {{ .Values.service.port }}
+      targetPort: {{ .Values.service.targetPort }}

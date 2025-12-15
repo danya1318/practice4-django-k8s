@@ -1,0 +1,30 @@
+replicaCount: 1
+
+image:
+  repository: 192.168.0.126:30500/djangoapp
+  tag: "1.4"
+  pullPolicy: IfNotPresent
+
+imagePullSecrets:
+  - name: registry-auth
+
+service:
+  type: ClusterIP
+  port: 8000
+  targetPort: 8000
+  name: http
+
+resources: {}
+
+metrics:
+  enabled: true
+  path: /metrics
+  interval: 15s
+
+serviceMonitor:
+  enabled: true
+  namespace: monitoring
+  releaseLabel: prometheus
+
+env:
+  DJANGO_ALLOWED_HOSTS: "*"

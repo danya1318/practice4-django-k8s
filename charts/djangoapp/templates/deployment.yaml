@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: djangoapp
+  labels:
+    app: djangoapp
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: djangoapp
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: djangoapp
+    spec:
+      imagePullSecrets:
+{{- toYaml .Values.imagePullSecrets | nindent 8 }}
+      containers:
+        - name: djangoapp
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.service.targetPort }}
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: {{ .Values.service.targetPort }}
+              httpHeaders:
+                - name: Host
+                  value: "127.0.0.1"
+            initialDelaySeconds: 10
+            timeoutSeconds: 2
+            periodSeconds: 10
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: {{ .Values.service.targetPort }}
+              httpHeaders:
+                - name: Host
+                  value: "127.0.0.1"
+            initialDelaySeconds: 20
+            timeoutSeconds: 2
+            periodSeconds: 20
+            failureThreshold: 6
+env:
+  - name: DJANGO_ALLOWED_HOSTS
+    value: "{{ .Values.env.DJANGO_ALLOWED_HOSTS }}"
